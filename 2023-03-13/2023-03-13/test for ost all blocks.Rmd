@@ -1,0 +1,407 @@
+---
+title: "GHG code"
+author: "Jasdeep Singh"
+date: "2023-03-20"
+output: html_document
+---
+
+## Libraries
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#library(tidyverse) # read_csv function
+library(dplyr)
+#library(broom) # to change model results into data frame
+library(data.table) # rbindlist
+library(purrr) # map_df function
+library(tidyr)
+library(qdapRegex)
+library(readr)
+library(readxl)
+```
+
+### Block One
+
+```{r block one}
+vol<- read_excel("C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\vol.xlsx")[, c(1, 10, 12,13)] # Constant factor. Volume (including collar, chamber, sample in, sample out) + chamber temp. (centigrade). This should be prepared in advance.
+
+tbl <- list.files(path = "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B1", # Where files are stored
+               pattern = "*.txt", 
+               full.names = T) %>% 
+  lapply(., read.delim, header=TRUE) %>%
+  lapply(., function(x){x[c(3, 4, 6)]}) %>% # Only CO2, N2O and CH4 are selected. Specify these names according to column positions
+  #lapply(., function(x) {x <- x[-c(1, 2), ]}) %>% # This will remove first two rows (first two sampling points)
+  lapply(., function(x){cbind(x, time=seq(0, by=20, length.out=nrow(x)))}) # Providing 20 sec. points
+
+fun1<- function(x) {
+  coef(lm(Carbon.dioxide.CO2 ~ time, data=x))[2] # 2 is slope
+}
+
+fun2<- function(x) {
+  summary(lm(Carbon.dioxide.CO2 ~ time, data=x))$r.squared # R. square values
+}
+
+fun3<- function(x) {
+  coef(lm(Nitrous.oxide.N2O ~ time, data=x))[2] # 2 is slope
+}
+
+fun4<- function(x) {
+  summary(lm(Nitrous.oxide.N2O ~ time, data=x))$r.squared # R. square values
+}
+
+fun5<- function(x) {
+  coef(lm(Methane.CH4 ~ time, data=x))[2] # 2 is slope
+}
+
+fun6<- function(x) {
+  summary(lm(Methane.CH4 ~ time, data=x))$r.squared # R. square values
+}
+
+f1<- lapply(tbl, fun1) # slope CO2
+f2<- lapply(tbl, fun2) # R. square CO2 values
+f3<- lapply(tbl, fun3) # slope N2O
+f4<- lapply(tbl, fun4) # R. square N2O values
+f5<- lapply(tbl, fun5) # slope CH4
+f6<- lapply(tbl, fun6) # R. square CH4 values
+
+d1<- do.call(rbind, Map(data.frame, slope= f1, r.sq= f2)) # CO2
+d2<- do.call(rbind, Map(data.frame, slope= f3, r.sq= f4)) # N2O
+d3<- do.call(rbind, Map(data.frame, slope= f5, r.sq= f6)) # CH4
+
+# Merging dataframes
+d1<- cbind.data.frame(vol, d1)
+d2<- cbind.data.frame(vol, d2)
+d3<- cbind.data.frame(vol, d3)
+
+d1$CO2<- d1$slope*d1$`Chamber height in cm2`*.001*44*60*60*(1/(.0821*(d1$Chamber+273))) # Final CO2 calculations (ugCO2/m2/s)
+
+d2$N2O<- d2$slope*d2$`Chamber height in cm2`*.001*44000*60*60*(1/(.0821*(d2$Chamber+273))) # Final N2O calculations (ngN2O/m2/s)
+d3$CH4<- d3$slope*d3$`Chamber height in cm2`*.001*16000*(1/(.0821*(d3$Chamber+273))) # Final CH4 calculations (ngCH4/m2/s)
+
+final<- data.frame(d1$id, d1$CO2,d2$N2O, d3$CH4, d1$r.sq, d2$r.sq, d3$r.sq)
+nam<- c('id', 'CO2', 'N2O', 'CH4', 'R.CO2', 'R.N2O', 'R.CH')
+names(final)<- nam
+
+write.csv(final, "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B1\\b1conc.csv") # Transport to your hard-disk
+``` 
+
+
+
+### Block Two
+```{r block two}
+vol<- read_excel("C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\vol.xlsx")[, c(1, 10, 12,13)] # Constant factor. Volume (including collar, chamber, sample in, sample out) + chamber temp. (centigrade). This should be prepared in advance.
+
+tbl <- list.files(path = "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B2", # Where files are stored
+               pattern = "*.txt", 
+               full.names = T) %>% 
+  lapply(., read.delim, header=TRUE) %>%
+  lapply(., function(x){x[c(3, 4, 6)]}) %>% # Only CO2, N2O and CH4 are selected. Specify these names according to column positions
+  #lapply(., function(x) {x <- x[-c(1, 2), ]}) %>% # This will remove first two rows (first two sampling points)
+  lapply(., function(x){cbind(x, time=seq(0, by=20, length.out=nrow(x)))}) # Providing 20 sec. points
+
+fun1<- function(x) {
+  coef(lm(Carbon.dioxide.CO2 ~ time, data=x))[2] # 2 is slope
+}
+
+fun2<- function(x) {
+  summary(lm(Carbon.dioxide.CO2 ~ time, data=x))$r.squared # R. square values
+}
+
+fun3<- function(x) {
+  coef(lm(Nitrous.oxide.N2O ~ time, data=x))[2] # 2 is slope
+}
+
+fun4<- function(x) {
+  summary(lm(Nitrous.oxide.N2O ~ time, data=x))$r.squared # R. square values
+}
+
+fun5<- function(x) {
+  coef(lm(Methane.CH4 ~ time, data=x))[2] # 2 is slope
+}
+
+fun6<- function(x) {
+  summary(lm(Methane.CH4 ~ time, data=x))$r.squared # R. square values
+}
+
+f1<- lapply(tbl, fun1) # slope CO2
+f2<- lapply(tbl, fun2) # R. square CO2 values
+f3<- lapply(tbl, fun3) # slope N2O
+f4<- lapply(tbl, fun4) # R. square N2O values
+f5<- lapply(tbl, fun5) # slope CH4
+f6<- lapply(tbl, fun6) # R. square CH4 values
+
+d1<- do.call(rbind, Map(data.frame, slope= f1, r.sq= f2)) # CO2
+d2<- do.call(rbind, Map(data.frame, slope= f3, r.sq= f4)) # N2O
+d3<- do.call(rbind, Map(data.frame, slope= f5, r.sq= f6)) # CH4
+
+# Merging dataframes
+d1<- cbind.data.frame(vol, d1)
+d2<- cbind.data.frame(vol, d2)
+d3<- cbind.data.frame(vol, d3)
+
+d1$CO2<- d1$slope*d1$`Chamber height in cm2`*.001*44*60*60*(1/(.0821*(d1$Chamber+273))) # Final CO2 calculations (ugCO2/m2/s)
+
+d2$N2O<- d2$slope*d2$`Chamber height in cm2`*.001*44000*60*60*(1/(.0821*(d2$Chamber+273))) # Final N2O calculations (ngN2O/m2/s)
+d3$CH4<- d3$slope*d3$`Chamber height in cm2`*.001*16000*(1/(.0821*(d3$Chamber+273))) # Final CH4 calculations (ngCH4/m2/s)
+
+final<- data.frame(d1$id, d1$CO2,d2$N2O, d3$CH4, d1$r.sq, d2$r.sq, d3$r.sq)
+nam<- c('id', 'CO2', 'N2O', 'CH4', 'R.CO2', 'R.N2O', 'R.CH')
+names(final)<- nam
+
+write.csv(final, "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B2\\b2conc.csv") # Transport to your hard-disk
+``` 
+
+### Block Three
+```{r block one}
+vol<- read_excel("C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\vol.xlsx")[, c(1, 10, 12,13)] # Constant factor. Volume (including collar, chamber, sample in, sample out) + chamber temp. (centigrade). This should be prepared in advance.
+
+tbl <- list.files(path = "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B3", # Where files are stored
+               pattern = "*.txt", 
+               full.names = T) %>% 
+  lapply(., read.delim, header=TRUE) %>%
+  lapply(., function(x){x[c(3, 4, 6)]}) %>% # Only CO2, N2O and CH4 are selected. Specify these names according to column positions
+  #lapply(., function(x) {x <- x[-c(1, 2), ]}) %>% # This will remove first two rows (first two sampling points)
+  lapply(., function(x){cbind(x, time=seq(0, by=20, length.out=nrow(x)))}) # Providing 20 sec. points
+
+fun1<- function(x) {
+  coef(lm(Carbon.dioxide.CO2 ~ time, data=x))[2] # 2 is slope
+}
+
+fun2<- function(x) {
+  summary(lm(Carbon.dioxide.CO2 ~ time, data=x))$r.squared # R. square values
+}
+
+fun3<- function(x) {
+  coef(lm(Nitrous.oxide.N2O ~ time, data=x))[2] # 2 is slope
+}
+
+fun4<- function(x) {
+  summary(lm(Nitrous.oxide.N2O ~ time, data=x))$r.squared # R. square values
+}
+
+fun5<- function(x) {
+  coef(lm(Methane.CH4 ~ time, data=x))[2] # 2 is slope
+}
+
+fun6<- function(x) {
+  summary(lm(Methane.CH4 ~ time, data=x))$r.squared # R. square values
+}
+
+f1<- lapply(tbl, fun1) # slope CO2
+f2<- lapply(tbl, fun2) # R. square CO2 values
+f3<- lapply(tbl, fun3) # slope N2O
+f4<- lapply(tbl, fun4) # R. square N2O values
+f5<- lapply(tbl, fun5) # slope CH4
+f6<- lapply(tbl, fun6) # R. square CH4 values
+
+d1<- do.call(rbind, Map(data.frame, slope= f1, r.sq= f2)) # CO2
+d2<- do.call(rbind, Map(data.frame, slope= f3, r.sq= f4)) # N2O
+d3<- do.call(rbind, Map(data.frame, slope= f5, r.sq= f6)) # CH4
+
+# Merging dataframes
+d1<- cbind.data.frame(vol, d1)
+d2<- cbind.data.frame(vol, d2)
+d3<- cbind.data.frame(vol, d3)
+
+d1$CO2<- d1$slope*d1$`Chamber height in cm2`*.001*44*60*60*(1/(.0821*(d1$Chamber+273))) # Final CO2 calculations (ugCO2/m2/s)
+
+d2$N2O<- d2$slope*d2$`Chamber height in cm2`*.001*44000*60*60*(1/(.0821*(d2$Chamber+273))) # Final N2O calculations (ngN2O/m2/s)
+d3$CH4<- d3$slope*d3$`Chamber height in cm2`*.001*16000*(1/(.0821*(d3$Chamber+273))) # Final CH4 calculations (ngCH4/m2/s)
+
+final<- data.frame(d1$id, d1$CO2,d2$N2O, d3$CH4, d1$r.sq, d2$r.sq, d3$r.sq)
+nam<- c('id', 'CO2', 'N2O', 'CH4', 'R.CO2', 'R.N2O', 'R.CH')
+names(final)<- nam
+
+write.csv(final, "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B3\\b3conc.csv") # Transport to your hard-disk
+``` 
+
+### Block Four
+```{r block one}
+vol<- read_excel("C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\vol.xlsx")[, c(1, 10, 12,13)] # Constant factor. Volume (including collar, chamber, sample in, sample out) + chamber temp. (centigrade). This should be prepared in advance.
+
+tbl <- list.files(path = "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B4", # Where files are stored
+               pattern = "*.txt", 
+               full.names = T) %>% 
+  lapply(., read.delim, header=TRUE) %>%
+  lapply(., function(x){x[c(3, 4, 6)]}) %>% # Only CO2, N2O and CH4 are selected. Specify these names according to column positions
+  #lapply(., function(x) {x <- x[-c(1, 2), ]}) %>% # This will remove first two rows (first two sampling points)
+  lapply(., function(x){cbind(x, time=seq(0, by=20, length.out=nrow(x)))}) # Providing 20 sec. points
+
+fun1<- function(x) {
+  coef(lm(Carbon.dioxide.CO2 ~ time, data=x))[2] # 2 is slope
+}
+
+fun2<- function(x) {
+  summary(lm(Carbon.dioxide.CO2 ~ time, data=x))$r.squared # R. square values
+}
+
+fun3<- function(x) {
+  coef(lm(Nitrous.oxide.N2O ~ time, data=x))[2] # 2 is slope
+}
+
+fun4<- function(x) {
+  summary(lm(Nitrous.oxide.N2O ~ time, data=x))$r.squared # R. square values
+}
+
+fun5<- function(x) {
+  coef(lm(Methane.CH4 ~ time, data=x))[2] # 2 is slope
+}
+
+fun6<- function(x) {
+  summary(lm(Methane.CH4 ~ time, data=x))$r.squared # R. square values
+}
+
+f1<- lapply(tbl, fun1) # slope CO2
+f2<- lapply(tbl, fun2) # R. square CO2 values
+f3<- lapply(tbl, fun3) # slope N2O
+f4<- lapply(tbl, fun4) # R. square N2O values
+f5<- lapply(tbl, fun5) # slope CH4
+f6<- lapply(tbl, fun6) # R. square CH4 values
+
+d1<- do.call(rbind, Map(data.frame, slope= f1, r.sq= f2)) # CO2
+d2<- do.call(rbind, Map(data.frame, slope= f3, r.sq= f4)) # N2O
+d3<- do.call(rbind, Map(data.frame, slope= f5, r.sq= f6)) # CH4
+
+# Merging dataframes
+d1<- cbind.data.frame(vol, d1)
+d2<- cbind.data.frame(vol, d2)
+d3<- cbind.data.frame(vol, d3)
+
+d1$CO2<- d1$slope*d1$`Chamber height in cm2`*.001*44*60*60*(1/(.0821*(d1$Chamber+273))) # Final CO2 calculations (ugCO2/m2/s)
+
+d2$N2O<- d2$slope*d2$`Chamber height in cm2`*.001*44000*60*60*(1/(.0821*(d2$Chamber+273))) # Final N2O calculations (ngN2O/m2/s)
+d3$CH4<- d3$slope*d3$`Chamber height in cm2`*.001*16000*(1/(.0821*(d3$Chamber+273))) # Final CH4 calculations (ngCH4/m2/s)
+
+final<- data.frame(d1$id, d1$CO2,d2$N2O, d3$CH4, d1$r.sq, d2$r.sq, d3$r.sq)
+nam<- c('id', 'CO2', 'N2O', 'CH4', 'R.CO2', 'R.N2O', 'R.CH')
+names(final)<- nam
+
+write.csv(final, "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B4\\b4conc.csv") # Transport to your hard-disk
+``` 
+
+### Block Five
+```{r block one}
+vol<- read_excel("C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\vol.xlsx")[, c(1, 10, 12,13)] # Constant factor. Volume (including collar, chamber, sample in, sample out) + chamber temp. (centigrade). This should be prepared in advance.
+
+tbl <- list.files(path = "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B5", # Where files are stored
+               pattern = "*.txt", 
+               full.names = T) %>% 
+  lapply(., read.delim, header=TRUE) %>%
+  lapply(., function(x){x[c(3, 4, 6)]}) %>% # Only CO2, N2O and CH4 are selected. Specify these names according to column positions
+  #lapply(., function(x) {x <- x[-c(1, 2), ]}) %>% # This will remove first two rows (first two sampling points)
+  lapply(., function(x){cbind(x, time=seq(0, by=20, length.out=nrow(x)))}) # Providing 20 sec. points
+
+fun1<- function(x) {
+  coef(lm(Carbon.dioxide.CO2 ~ time, data=x))[2] # 2 is slope
+}
+
+fun2<- function(x) {
+  summary(lm(Carbon.dioxide.CO2 ~ time, data=x))$r.squared # R. square values
+}
+
+fun3<- function(x) {
+  coef(lm(Nitrous.oxide.N2O ~ time, data=x))[2] # 2 is slope
+}
+
+fun4<- function(x) {
+  summary(lm(Nitrous.oxide.N2O ~ time, data=x))$r.squared # R. square values
+}
+
+fun5<- function(x) {
+  coef(lm(Methane.CH4 ~ time, data=x))[2] # 2 is slope
+}
+
+fun6<- function(x) {
+  summary(lm(Methane.CH4 ~ time, data=x))$r.squared # R. square values
+}
+
+f1<- lapply(tbl, fun1) # slope CO2
+f2<- lapply(tbl, fun2) # R. square CO2 values
+f3<- lapply(tbl, fun3) # slope N2O
+f4<- lapply(tbl, fun4) # R. square N2O values
+f5<- lapply(tbl, fun5) # slope CH4
+f6<- lapply(tbl, fun6) # R. square CH4 values
+
+d1<- do.call(rbind, Map(data.frame, slope= f1, r.sq= f2)) # CO2
+d2<- do.call(rbind, Map(data.frame, slope= f3, r.sq= f4)) # N2O
+d3<- do.call(rbind, Map(data.frame, slope= f5, r.sq= f6)) # CH4
+
+# Merging dataframes
+d1<- cbind.data.frame(vol, d1)
+d2<- cbind.data.frame(vol, d2)
+d3<- cbind.data.frame(vol, d3)
+
+d1$CO2<- d1$slope*d1$`Chamber height in cm2`*.001*44*60*60*(1/(.0821*(d1$Chamber+273))) # Final CO2 calculations (ugCO2/m2/s)
+
+d2$N2O<- d2$slope*d2$`Chamber height in cm2`*.001*44000*60*60*(1/(.0821*(d2$Chamber+273))) # Final N2O calculations (ngN2O/m2/s)
+d3$CH4<- d3$slope*d3$`Chamber height in cm2`*.001*16000*(1/(.0821*(d3$Chamber+273))) # Final CH4 calculations (ngCH4/m2/s)
+
+final<- data.frame(d1$id, d1$CO2,d2$N2O, d3$CH4, d1$r.sq, d2$r.sq, d3$r.sq)
+nam<- c('id', 'CO2', 'N2O', 'CH4', 'R.CO2', 'R.N2O', 'R.CH')
+names(final)<- nam
+
+write.csv(final, "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B5\\b5conc.csv") # Transport to your hard-disk
+``` 
+
+##Block Six
+```{r block one}
+vol<- read_excel("C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\vol.xlsx")[, c(1, 10, 12,13)] # Constant factor. Volume (including collar, chamber, sample in, sample out) + chamber temp. (centigrade). This should be prepared in advance.
+
+tbl <- list.files(path = "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B5", # Where files are stored
+               pattern = "*.txt", 
+               full.names = T) %>% 
+  lapply(., read.delim, header=TRUE) %>%
+  lapply(., function(x){x[c(3, 4, 6)]}) %>% # Only CO2, N2O and CH4 are selected. Specify these names according to column positions
+  #lapply(., function(x) {x <- x[-c(1, 2), ]}) %>% # This will remove first two rows (first two sampling points)
+  lapply(., function(x){cbind(x, time=seq(0, by=20, length.out=nrow(x)))}) # Providing 20 sec. points
+
+fun1<- function(x) {
+  coef(lm(Carbon.dioxide.CO2 ~ time, data=x))[2] # 2 is slope
+}
+
+fun2<- function(x) {
+  summary(lm(Carbon.dioxide.CO2 ~ time, data=x))$r.squared # R. square values
+}
+
+fun3<- function(x) {
+  coef(lm(Nitrous.oxide.N2O ~ time, data=x))[2] # 2 is slope
+}
+
+fun4<- function(x) {
+  summary(lm(Nitrous.oxide.N2O ~ time, data=x))$r.squared # R. square values
+}
+
+fun5<- function(x) {
+  coef(lm(Methane.CH4 ~ time, data=x))[2] # 2 is slope
+}
+
+fun6<- function(x) {
+  summary(lm(Methane.CH4 ~ time, data=x))$r.squared # R. square values
+}
+
+f1<- lapply(tbl, fun1) # slope CO2
+f2<- lapply(tbl, fun2) # R. square CO2 values
+f3<- lapply(tbl, fun3) # slope N2O
+f4<- lapply(tbl, fun4) # R. square N2O values
+f5<- lapply(tbl, fun5) # slope CH4
+f6<- lapply(tbl, fun6) # R. square CH4 values
+
+d1<- do.call(rbind, Map(data.frame, slope= f1, r.sq= f2)) # CO2
+d2<- do.call(rbind, Map(data.frame, slope= f3, r.sq= f4)) # N2O
+d3<- do.call(rbind, Map(data.frame, slope= f5, r.sq= f6)) # CH4
+
+# Merging dataframes
+d1<- cbind.data.frame(vol, d1)
+d2<- cbind.data.frame(vol, d2)
+d3<- cbind.data.frame(vol, d3)
+
+d1$CO2<- d1$slope*d1$`Chamber height in cm2`*.001*44*60*60*(1/(.0821*(d1$Chamber+273))) # Final CO2 calculations (ugCO2/m2/s)
+
+d2$N2O<- d2$slope*d2$`Chamber height in cm2`*.001*44000*60*60*(1/(.0821*(d2$Chamber+273))) # Final N2O calculations (ngN2O/m2/s)
+d3$CH4<- d3$slope*d3$`Chamber height in cm2`*.001*16000*(1/(.0821*(d3$Chamber+273))) # Final CH4 calculations (ngCH4/m2/s)
+
+final<- data.frame(d1$id, d1$CO2,d2$N2O, d3$CH4, d1$r.sq, d2$r.sq, d3$r.sq)
+nam<- c('id', 'CO2', 'N2O', 'CH4', 'R.CO2', 'R.N2O', 'R.CH')
+names(final)<- nam
+
+write.csv(final, "C:\\Users\\pleon2\\OneDrive - University of Illinois - Urbana\\OST 3-13\\B5\\b5conc.csv") # Transport to your hard-disk
+``` 
